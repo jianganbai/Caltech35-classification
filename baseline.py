@@ -1,3 +1,4 @@
+import numpy as np
 from dataset import tiny_caltech35
 import torchvision.transforms as transforms
 import torch
@@ -5,6 +6,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import argparse
 from model.base_model import base_model
+import time
 
 
 def main(config):
@@ -39,10 +41,10 @@ def main(config):
 
     optimizer = optim.SGD(model.parameters(), lr=config.learning_rate)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=config.milestones, gamma=0.1, last_epoch=-1)
-    creiteron = torch.nn.CrossEntropyLoss()
+    criterion = torch.nn.CrossEntropyLoss()
 
     # you may need train_numbers and train_losses to visualize something
-    train_numbers, train_losses = train(config, train_loader, model, optimizer, scheduler, creiteron, device)
+    train_loss, train_acc, val_acc = train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device)
 
     # you can use validation dataset to adjust hyper-parameters
     val_accuracy = test(val_loader, model, device)
@@ -52,31 +54,42 @@ def main(config):
     print("test accuracy:{}%".format(test_accuracy * 100))
 
 
-def train(config, data_loader, model, optimizer, scheduler, creiteron, device):
-    model.train()
-    train_losses = []
-    train_numbers = []
-    counter = 0
-    for epoch in range(config.epochs):
-        for batch_idx, (data, label) in enumerate(data_loader):
+def train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device):
+    train_loss_his, train_acc_his, val_acc_his = [], [], []
+    for epoch in np.arange(1, config.epochs+1):
+        model.train()
+        epoch_start = time.time()
+        train_acc, num, epoch_loss = 0, 0, 0
+        for batch_idx, (data, label) in enumerate(train_loader):
             data = data.to(device)
             label = label.to(device)
             output = model(data)
-            loss = creiteron(output, label)
+            loss = criterion(output, label)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            counter += data.shape[0]
-            accuracy = (label == output.argmax(dim=1)).sum().cpu() * 1.0 / output.shape[0]
+            num += data.shape[0]
+            train_acc += (label == output.argmax(dim=1)).sum().cpu()
+            epoch_loss += loss.cpu().item()
+            '''
             if batch_idx % 20 == 0:
                 print('Train Epoch: {} / {} [{}/{} ({:.0f}%)] Loss: {:.6f} Accuracy: {:.6f}'.format(
                     epoch, config.epochs, batch_idx * len(data), len(data_loader.dataset),
                                           100. * batch_idx / len(data_loader), loss.item(), accuracy.item()))
                 train_losses.append(loss.item())
                 train_numbers.append(counter)
+            '''
+        epoch_loss = epoch_loss/(batch_idx+1)
+        train_acc = train_acc/num
+        val_acc = test(val_loader, model, device)
+        train_loss_his.append(epoch_loss)
+        train_acc_his.append(train_acc)
+        val_acc_his.append(val_acc)
+        time_len = time.time()-epoch_start
+        print('[Epoch: {}/{}] [Loss: {:.6f}] [Train Acc: {:.6f}] [Val Acc: {:.6f}] [Time: {:.1f}sec]'.format(epoch, config.epochs, epoch_loss, train_acc, val_acc, time_len))
         scheduler.step()
         torch.save(model.state_dict(), './model.pth')
-    return train_numbers, train_losses
+    return train_loss_his, train_acc_his
 
 
 def test(data_loader, model, device):
@@ -88,8 +101,8 @@ def test(data_loader, model, device):
             label = label.to(device)
             output = model(data)
             pred = output.argmax(dim=1)
-            correct += (pred == label).sum()
-    accuracy = correct * 1.0 / len(data_loader.dataset)
+            correct += (pred == label).sum().cpu()
+    accuracy = correct.item() * 1.0 / len(data_loader.dataset)
     return accuracy
 
 
