@@ -5,9 +5,11 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import argparse
-from model.base_model import base_model
 import time
 import copy
+
+from model.base_model import base_model
+from model.base_model_modify import base_model_modify
 
 
 def main(config):
@@ -37,15 +39,19 @@ def main(config):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = base_model(class_num=config.class_num)
+    if config.net == 'baseline':
+        model = base_model(class_num=config.class_num)
+        optimizer = optim.SGD(model.parameters(), lr=config.learning_rate)
+    elif config.net == 'baseline-modify':
+        model = base_model_modify(class_num=config.class_num)
+        optimizer = optim.RMSprop(model.parameters(), lr=config.learning_rate)
     model.to(device)
 
-    optimizer = optim.SGD(model.parameters(), lr=config.learning_rate)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=config.milestones, gamma=0.1, last_epoch=-1)
     criterion = torch.nn.CrossEntropyLoss()
 
     # you may need train_numbers and train_losses to visualize something
-    # train_loss, train_acc, val_acc = train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device)
+    train_loss, train_acc, val_acc = train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device)
 
     # you can use validation dataset to adjust hyper-parameters
     model.load_state_dict(torch.load('./model/{}.pth'.format(config.net)))
@@ -112,6 +118,6 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', type=float, default=0.01)
     parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--milestones', type=int, nargs='+', default=[40, 50])
-    parser.add_argument('--net', choices=['baseline', 'baseline-modify'], default='baseline')
+    parser.add_argument('--net', choices=['baseline', 'baseline-modify'], default='baseline-modify')
     config = parser.parse_args()
     main(config)
