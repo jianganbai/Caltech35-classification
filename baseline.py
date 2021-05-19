@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 import argparse
 from model.base_model import base_model
 import time
+import copy
 
 
 def main(config):
@@ -44,18 +45,19 @@ def main(config):
     criterion = torch.nn.CrossEntropyLoss()
 
     # you may need train_numbers and train_losses to visualize something
-    train_loss, train_acc, val_acc = train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device)
+    # train_loss, train_acc, val_acc = train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device)
 
     # you can use validation dataset to adjust hyper-parameters
-    val_accuracy = test(val_loader, model, device)
+    model.load_state_dict(torch.load('./model/{}.pth'.format(config.net)))
     test_accuracy = test(test_loader, model, device)
     print('===========================')
-    print("val accuracy:{}%".format(val_accuracy * 100))
     print("test accuracy:{}%".format(test_accuracy * 100))
 
 
 def train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device):
     train_loss_his, train_acc_his, val_acc_his = [], [], []
+    best_val_acc = 0
+    print('Training on {} for {} epochs'.format(device, config.epochs))
     for epoch in np.arange(1, config.epochs+1):
         model.train()
         epoch_start = time.time()
@@ -71,14 +73,6 @@ def train(config, train_loader, val_loader, model, optimizer, scheduler, criteri
             num += data.shape[0]
             train_acc += (label == output.argmax(dim=1)).sum().cpu()
             epoch_loss += loss.cpu().item()
-            '''
-            if batch_idx % 20 == 0:
-                print('Train Epoch: {} / {} [{}/{} ({:.0f}%)] Loss: {:.6f} Accuracy: {:.6f}'.format(
-                    epoch, config.epochs, batch_idx * len(data), len(data_loader.dataset),
-                                          100. * batch_idx / len(data_loader), loss.item(), accuracy.item()))
-                train_losses.append(loss.item())
-                train_numbers.append(counter)
-            '''
         epoch_loss = epoch_loss/(batch_idx+1)
         train_acc = train_acc/num
         val_acc = test(val_loader, model, device)
@@ -88,8 +82,12 @@ def train(config, train_loader, val_loader, model, optimizer, scheduler, criteri
         time_len = time.time()-epoch_start
         print('[Epoch: {}/{}] [Loss: {:.6f}] [Train Acc: {:.6f}] [Val Acc: {:.6f}] [Time: {:.1f}sec]'.format(epoch, config.epochs, epoch_loss, train_acc, val_acc, time_len))
         scheduler.step()
-        torch.save(model.state_dict(), './model.pth')
-    return train_loss_his, train_acc_his
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            best_net_para = copy.deepcopy(model.state_dict())
+    print('Training Complete! Best validation accuracy: {:.6f}'.format(best_val_acc))
+    torch.save(best_net_para, './model/{}.pth'.format(config.net))
+    return train_loss_his, train_acc_his, val_acc_his
 
 
 def test(data_loader, model, device):
@@ -114,6 +112,6 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', type=float, default=0.01)
     parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--milestones', type=int, nargs='+', default=[40, 50])
-
+    parser.add_argument('--net', choices=['baseline', 'baseline-modify'], default='baseline')
     config = parser.parse_args()
     main(config)
