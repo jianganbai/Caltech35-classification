@@ -10,17 +10,19 @@ import copy
 
 from model.base_model import base_model
 from model.base_model_modify import base_model_modify
+from model.resnet import resnet
+from model.densenet import densenet
 
 
-def main(config):
+def main(config, param):
     transform_train = transforms.Compose([
-        transforms.Resize(config.image_size, interpolation=3),
+        transforms.Resize(param['imsize'], interpolation=3),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     transform_test = transforms.Compose([
-        transforms.Resize(config.image_size, interpolation=3),
+        transforms.Resize(param['imsize'], interpolation=3),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
@@ -41,12 +43,15 @@ def main(config):
 
     if config.net == 'baseline':
         model = base_model(class_num=config.class_num)
-        optimizer = optim.SGD(model.parameters(), lr=config.learning_rate)
     elif config.net == 'baseline-modify':
         model = base_model_modify(class_num=config.class_num)
-        optimizer = optim.RMSprop(model.parameters(), lr=config.learning_rate)
+    elif config.net == 'resnet':
+        model = resnet(class_num=config.class_num)
+    elif config.net == 'densenet':
+        model = densenet(class_num=config.class_num)
     model.to(device)
 
+    optimizer = optim.SGD(model.parameters(), lr=config.learning_rate)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=config.milestones, gamma=0.1, last_epoch=-1)
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -112,12 +117,15 @@ def test(data_loader, model, device):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--image_size', type=int, nargs='+', default=[112, 112])
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--class_num', type=int, default=35)
     parser.add_argument('--learning_rate', type=float, default=0.01)
     parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--milestones', type=int, nargs='+', default=[40, 50])
-    parser.add_argument('--net', choices=['baseline', 'baseline-modify'], default='baseline-modify')
+    parser.add_argument('--net', choices=['baseline', 'baseline-modify'], default='densenet')
     config = parser.parse_args()
-    main(config)
+
+    param = {}
+    if config.net == 'resnet' or config.net == 'densenet':
+        param['imsize'] = [224, 224]
+    main(config, param)
