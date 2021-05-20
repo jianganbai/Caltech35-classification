@@ -1,5 +1,6 @@
 dataset/
 *.pth
+visualize/
 
 
 # Byte-compiled / optimized / DLL files

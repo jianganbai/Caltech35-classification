@@ -8,6 +8,7 @@ import argparse
 import time
 import copy
 
+import visualize
 from model.base_model import base_model
 from model.base_model_modify import base_model_modify
 from model.resnet import resnet
@@ -60,15 +61,16 @@ def main(config, param):
 
     # you can use validation dataset to adjust hyper-parameters
     model.load_state_dict(torch.load('./model/{}.pth'.format(config.net)))
-    test_accuracy = test(test_loader, model, device)
+    test_accuracy = test(test_loader, model, device, visual=True, config=config)
     print('===========================')
     print("test accuracy:{}%".format(test_accuracy * 100))
+    visualize.loss_and_acc(train_loss, train_acc, val_acc, config)
 
 
 def train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device):
     train_loss_his, train_acc_his, val_acc_his = [], [], []
     best_val_acc = 0
-    print('Training on {} for {} epochs'.format(device, config.epochs))
+    print('Training on {} for {} epochs. Net type: {}'.format(device, config.epochs, config.net))
     for epoch in np.arange(1, config.epochs+1):
         model.train()
         epoch_start = time.time()
@@ -84,6 +86,7 @@ def train(config, train_loader, val_loader, model, optimizer, scheduler, criteri
             num += data.shape[0]
             train_acc += (label == output.argmax(dim=1)).sum().cpu()
             epoch_loss += loss.cpu().item()
+
         epoch_loss = epoch_loss/(batch_idx+1)
         train_acc = train_acc/num
         val_acc = test(val_loader, model, device)
@@ -93,25 +96,42 @@ def train(config, train_loader, val_loader, model, optimizer, scheduler, criteri
         time_len = time.time()-epoch_start
         print('[Epoch: {}/{}] [Loss: {:.6f}] [Train Acc: {:.6f}] [Val Acc: {:.6f}] [Time: {:.1f}sec]'.format(epoch, config.epochs, epoch_loss, train_acc, val_acc, time_len))
         scheduler.step()
+
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             best_net_para = copy.deepcopy(model.state_dict())
+
     print('Training Complete! Best validation accuracy: {:.6f}'.format(best_val_acc))
     torch.save(best_net_para, './model/{}.pth'.format(config.net))
     return train_loss_his, train_acc_his, val_acc_his
 
 
-def test(data_loader, model, device):
+def test(data_loader, model, device, visual=False, feat_num=64, config=None):
     model.eval()
     correct = 0
+    if visual:
+        feat_all, label_all = np.zeros((0, feat_num)), np.zeros((0))
+        model.set_featout(True)
     with torch.no_grad():
         for data, label in data_loader:
             data = data.to(device)
             label = label.to(device)
-            output = model(data)
+            if visual:
+                output, feat = model(data)
+            else:
+                output = model(data)
             pred = output.argmax(dim=1)
             correct += (pred == label).sum().cpu()
+
+            if visual:
+                feat_all = np.row_stack((feat_all, feat.cpu().numpy()))
+                label_all = np.concatenate([label_all, label.cpu().numpy()])
     accuracy = correct.item() * 1.0 / len(data_loader.dataset)
+
+    # t-sne可视化
+    if visual:
+        visualize.tsne_vis(feat_all, label_all, config)
+        model.set_featout(False)
     return accuracy
 
 
@@ -122,10 +142,12 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', type=float, default=0.01)
     parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--milestones', type=int, nargs='+', default=[40, 50])
-    parser.add_argument('--net', choices=['baseline', 'baseline-modify'], default='densenet')
+    parser.add_argument('--net', choices=['baseline', 'baseline-modify', 'resnet', 'densenet'], default='baseline')
     config = parser.parse_args()
 
     param = {}
     if config.net == 'resnet' or config.net == 'densenet':
         param['imsize'] = [224, 224]
+    elif config.net == 'baseline' or 'baseline-modify':
+        param['imsize'] = [112, 112]
     main(config, param)

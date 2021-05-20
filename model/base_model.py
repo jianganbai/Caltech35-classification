@@ -17,6 +17,11 @@ class base_model(nn.Module):
         self.fc1 = nn.Linear(256, 64)
         self.fc2 = nn.Linear(64, class_num)
 
+        self.featout = False
+
+    def set_featout(self, property):
+        self.featout = property
+
     def forward(self, x):
         x = self.relu(self.bn1(self.conv1(x)))
         x = self.max_pooling(x)
@@ -27,6 +32,9 @@ class base_model(nn.Module):
         x = self.GAP(x).squeeze(dim=3).squeeze(dim=2)
         # you can see this x as the feature, and use it to visualize something
 
-        x = self.fc1(self.relu(self.bn3(x)))
-        x = self.fc2(self.bn4(x))
-        return x
+        feat = self.fc1(self.relu(self.bn3(x)))
+        x = self.fc2(self.bn4(feat))
+        if self.featout:
+            return x, feat
+        else:
+            return x
