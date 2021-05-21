@@ -71,6 +71,7 @@ def train(config, train_loader, val_loader, model, optimizer, scheduler, criteri
     train_loss_his, train_acc_his, val_acc_his = [], [], []
     best_val_acc = 0
     print('Training on {} for {} epochs. Net type: {}'.format(device, config.epochs, config.net))
+    print('===========================')
     for epoch in np.arange(1, config.epochs+1):
         model.train()
         epoch_start = time.time()

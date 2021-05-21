@@ -30,8 +30,20 @@ def loss_and_acc(train_loss, train_acc, val_acc, config):
 
     epoch = np.arange(1, config.epochs+1).tolist()
 
+    fig, ax1 = plt.subplots()
+    ax1.plot(epoch, train_loss, label='loss')
+    ax1.set_xlabel('epoch')
+    ax1.set_ylabel('loss')
+
+    ax2 = ax1.twinx()
+    ax2.plot(epoch, train_acc, label='train_acc')
+    ax2.plot(epoch, val_acc, label='val_acc')
+    ax2.set_ylabel('accuracy')
+
+    plt.legend(loc='upper left', bbox_to_anchor=(0, 1), bbox_transform=ax1.transAxes)
+    plt.savefig('./visualize/loss&acc/{}.jpg'.format(config.net))
+    '''
     for id, data in enumerate([train_loss, train_acc, val_acc]):
-        plt.figure()
         plt.plot(epoch, data)
         plt.xlabel('epoch')
         if id == 0:
@@ -46,3 +58,4 @@ def loss_and_acc(train_loss, train_acc, val_acc, config):
             plt.ylabel('accuracy')
             plt.title('validation accuracy during training')
             plt.savefig('./visualize/loss&acc/{}-val_acc'.format(config.net))
+        '''
