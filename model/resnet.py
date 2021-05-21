@@ -5,10 +5,10 @@ from torchvision import models
 class res(nn.Module):
     def __init__(self, class_num):
         super().__init__()
-        self.res = models.resnet34(pretrained=True)
+        self.res = models.resnet152(pretrained=True)
         for param in self.res.parameters():
             param.requires_grad = False
-        self.res.fc = nn.Linear(512, 64)
+        self.res.fc = nn.Linear(2048, 64)
 
         self.classifier = nn.Sequential(
             nn.BatchNorm1d(64),

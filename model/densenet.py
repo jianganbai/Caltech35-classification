@@ -5,10 +5,10 @@ import torchvision.models as models
 class dense(nn.Module):
     def __init__(self, class_num):
         super().__init__()
-        self.dense = models.densenet121(pretrained=True)
+        self.dense = models.densenet201(pretrained=True)
         for param in self.dense.parameters():
             param.requires_grad = False
-        self.dense.classifier = nn.Linear(1024, 64)
+        self.dense.classifier = nn.Linear(1920, 64)
 
         self.fc = nn.Sequential(
             nn.BatchNorm1d(64),

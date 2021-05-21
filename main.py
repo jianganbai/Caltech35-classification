@@ -52,7 +52,10 @@ def main(config, param):
         model = densenet(class_num=config.class_num)
     model.to(device)
 
-    optimizer = optim.SGD(model.parameters(), lr=config.learning_rate)
+    if config.L2:
+        optimizer = optim.SGD(model.parameters(), lr=config.learning_rate, weight_decay=0.01)
+    else:
+        optimizer = optim.SGD(model.parameters(), lr=config.learning_rate)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=config.milestones, gamma=0.1, last_epoch=-1)
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -80,7 +83,15 @@ def train(config, train_loader, val_loader, model, optimizer, scheduler, criteri
             data = data.to(device)
             label = label.to(device)
             output = model(data)
-            loss = criterion(output, label)
+
+            if config.L1:
+                param_loss = 0
+                for param in model.parameters():
+                    param_loss += torch.sum(torch.abs(param))
+                loss = criterion(output, label)+(1e-5)*param_loss
+            else:
+                loss = criterion(output, label)
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -143,7 +154,9 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', type=float, default=0.01)
     parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--milestones', type=int, nargs='+', default=[40, 50])
-    parser.add_argument('--net', choices=['baseline', 'baseline-modify', 'resnet', 'densenet'], default='baseline')
+    parser.add_argument('--net', choices=['baseline', 'baseline-modify', 'resnet', 'densenet'], default='densenet')
+    parser.add_argument('--L1', action='store_true', default=False)
+    parser.add_argument('--L2', action='store_true', default=False)
     config = parser.parse_args()
 
     param = {}

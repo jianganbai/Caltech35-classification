@@ -31,7 +31,7 @@ def loss_and_acc(train_loss, train_acc, val_acc, config):
     epoch = np.arange(1, config.epochs+1).tolist()
 
     fig, ax1 = plt.subplots()
-    ax1.plot(epoch, train_loss, label='loss')
+    ax1.plot(epoch, train_loss, color='red', label='loss')
     ax1.set_xlabel('epoch')
     ax1.set_ylabel('loss')
 
@@ -40,7 +40,8 @@ def loss_and_acc(train_loss, train_acc, val_acc, config):
     ax2.plot(epoch, val_acc, label='val_acc')
     ax2.set_ylabel('accuracy')
 
-    plt.legend(loc='upper left', bbox_to_anchor=(0, 1), bbox_transform=ax1.transAxes)
+    fig.legend(loc='upper left', bbox_to_anchor=(0, 1), bbox_transform=ax1.transAxes)
+    plt.title('{} performance'.format(config.net))
     plt.savefig('./visualize/loss&acc/{}.jpg'.format(config.net))
     '''
     for id, data in enumerate([train_loss, train_acc, val_acc]):
