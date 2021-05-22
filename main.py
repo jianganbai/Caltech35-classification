@@ -1,4 +1,5 @@
 import numpy as np
+from torchvision.transforms.transforms import RandomVerticalFlip
 from dataset import tiny_caltech35
 import torchvision.transforms as transforms
 import torch
@@ -10,7 +11,7 @@ import copy
 
 import visualize
 from model.base_model import base_model
-from model.base_model_modify import base_model_modify
+from model.base_model_dropout import base_model_dropout
 from model.resnet import resnet
 from model.densenet import densenet
 
@@ -19,6 +20,7 @@ def main(config, param):
     transform_train = transforms.Compose([
         transforms.Resize(param['imsize'], interpolation=3),
         transforms.RandomHorizontalFlip(p=0.5),
+        # transforms.RandomVerticalFlip(p=0.5),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
@@ -28,9 +30,10 @@ def main(config, param):
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-    train_dataset = tiny_caltech35(transform=transform_train, used_data=['train'])
-    # if you want to add the addition set and validation set to train
-    # train_dataset = tiny_caltech35(transform=transform_train, used_data=['train', 'val', 'addition'])
+    if config.add_real:
+        train_dataset = tiny_caltech35(transform=transform_train, used_data=['train', 'val', 'addition'])
+    else:
+        train_dataset = tiny_caltech35(transform=transform_train, used_data=['train'])
 
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True, drop_last=True)
 
@@ -44,8 +47,8 @@ def main(config, param):
 
     if config.net == 'baseline':
         model = base_model(class_num=config.class_num)
-    elif config.net == 'baseline-modify':
-        model = base_model_modify(class_num=config.class_num)
+    elif config.net == 'baseline-dropout':
+        model = base_model_dropout(class_num=config.class_num)
     elif config.net == 'resnet':
         model = resnet(class_num=config.class_num)
     elif config.net == 'densenet':
@@ -57,7 +60,11 @@ def main(config, param):
     else:
         optimizer = optim.SGD(model.parameters(), lr=config.learning_rate)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=config.milestones, gamma=0.1, last_epoch=-1)
-    criterion = torch.nn.CrossEntropyLoss()
+
+    if config.MSE:
+        criterion = torch.nn.MSELoss()
+    else:
+        criterion = torch.nn.CrossEntropyLoss()
 
     # you may need train_numbers and train_losses to visualize something
     train_loss, train_acc, val_acc = train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device)
@@ -70,7 +77,7 @@ def main(config, param):
     visualize.loss_and_acc(train_loss, train_acc, val_acc, config)
 
 
-def train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device):
+def train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device, class_num=35):
     train_loss_his, train_acc_his, val_acc_his = [], [], []
     best_val_acc = 0
     print('Training on {} for {} epochs. Net type: {}'.format(device, config.epochs, config.net))
@@ -88,7 +95,10 @@ def train(config, train_loader, val_loader, model, optimizer, scheduler, criteri
                 param_loss = 0
                 for param in model.parameters():
                     param_loss += torch.sum(torch.abs(param))
-                loss = criterion(output, label)+(1e-5)*param_loss
+                loss = criterion(output, label)+(1e-3)*param_loss
+            elif config.MSE:
+                one_hot = torch.zeros(data.shape[0], class_num).to(device).scatter_(1, label.unsqueeze(dim=1), 1)
+                loss = criterion(output, one_hot)
             else:
                 loss = criterion(output, label)
 
@@ -154,14 +164,16 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', type=float, default=0.01)
     parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--milestones', type=int, nargs='+', default=[40, 50])
-    parser.add_argument('--net', choices=['baseline', 'baseline-modify', 'resnet', 'densenet'], default='densenet')
+    parser.add_argument('--net', choices=['baseline', 'baseline-dropout', 'resnet', 'densenet'], default='densenet')
     parser.add_argument('--L1', action='store_true', default=False)
     parser.add_argument('--L2', action='store_true', default=False)
+    parser.add_argument('--MSE', action='store_true', default=True)
+    parser.add_argument('--add_real', action='store_true', default=False)
     config = parser.parse_args()
 
     param = {}
     if config.net == 'resnet' or config.net == 'densenet':
         param['imsize'] = [224, 224]
-    elif config.net == 'baseline' or 'baseline-modify':
+    elif config.net == 'baseline' or 'baseline-dropout':
         param['imsize'] = [112, 112]
     main(config, param)

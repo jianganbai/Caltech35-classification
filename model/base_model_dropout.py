@@ -1,9 +1,9 @@
 import torch.nn as nn
 
 
-class base_model_modify(nn.Module):
+class base_model_dropout(nn.Module):
     def __init__(self, class_num=35):
-        super(base_model_modify, self).__init__()
+        super(base_model_dropout, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=(7, 7), padding=3, stride=2)
         self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(3, 3), padding=1, stride=1)
@@ -13,10 +13,14 @@ class base_model_modify(nn.Module):
         self.max_pooling = nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
         self.GAP = nn.AdaptiveMaxPool2d((1, 1))
         self.bn3 = nn.BatchNorm1d(256)
-        self.bn4 = nn.BatchNorm1d(64)
         self.fc1 = nn.Linear(256, 64)
         self.fc2 = nn.Linear(64, class_num)
         self.dropout = nn.Dropout(p=0.2)
+
+        self.featout = False
+
+    def set_featout(self, property):
+        self.featout = property
 
     def forward(self, x):
         x = self.relu(self.bn1(self.conv1(x)))
@@ -28,6 +32,9 @@ class base_model_modify(nn.Module):
         x = self.GAP(x).squeeze(dim=3).squeeze(dim=2)
         # you can see this x as the feature, and use it to visualize something
 
-        x = self.fc1(self.relu(self.bn3(x)))
-        x = self.fc2(self.relu(self.dropout(self.bn4(x))))
-        return x
+        feat = self.fc1(self.relu(self.bn3(x)))
+        x = self.fc2(self.relu(self.dropout(feat)))
+        if self.featout:
+            return x, feat
+        else:
+            return x
