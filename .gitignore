@@ -1,6 +1,8 @@
 dataset/
 *.pth
 visualize/
+generation/generated
+generation/archive
 
 
 # Byte-compiled / optimized / DLL files
