@@ -1,10 +1,10 @@
 import numpy as np
-from torchvision.transforms.transforms import RandomVerticalFlip
 from dataset import tiny_caltech35
 import torchvision.transforms as transforms
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
+# from torchvision.transforms.transforms import RandomVerticalFlip
 import argparse
 import time
 import copy
@@ -80,6 +80,7 @@ def main(config, param):
 def train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device, class_num=35):
     train_loss_his, train_acc_his, val_acc_his = [], [], []
     best_val_acc = 0
+    ones = np.eye(class_num)
     print('Training on {} for {} epochs. Net type: {}'.format(device, config.epochs, config.net))
     print('===========================')
     for epoch in np.arange(1, config.epochs+1):
@@ -97,8 +98,10 @@ def train(config, train_loader, val_loader, model, optimizer, scheduler, criteri
                     param_loss += torch.sum(torch.abs(param))
                 loss = criterion(output, label)+(1e-3)*param_loss
             elif config.MSE:
-                one_hot = torch.zeros(data.shape[0], class_num).to(device).scatter_(1, label.unsqueeze(dim=1), 1)
-                loss = criterion(output, one_hot)
+                # one_hot = torch.zeros(data.shape[0], class_num).to(device).scatter_(1, label.unsqueeze(dim=1), 1)
+                one_hot = ones[label.cpu().numpy(), :]
+                one_hot = torch.FloatTensor(one_hot)
+                loss = criterion(output, one_hot.to(device))
             else:
                 loss = criterion(output, label)
 
@@ -164,10 +167,10 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', type=float, default=0.01)
     parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--milestones', type=int, nargs='+', default=[40, 50])
-    parser.add_argument('--net', choices=['baseline', 'baseline-dropout', 'resnet', 'densenet'], default='densenet')
+    parser.add_argument('--net', choices=['baseline', 'baseline-dropout', 'resnet', 'densenet'], default='baseline')
     parser.add_argument('--L1', action='store_true', default=False)
     parser.add_argument('--L2', action='store_true', default=False)
-    parser.add_argument('--MSE', action='store_true', default=True)
+    parser.add_argument('--MSE', action='store_true', default=False)
     parser.add_argument('--add_real', action='store_true', default=False)
     config = parser.parse_args()
 
