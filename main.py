@@ -98,7 +98,6 @@ def train(config, train_loader, val_loader, model, optimizer, scheduler, criteri
                     param_loss += torch.sum(torch.abs(param))
                 loss = criterion(output, label)+(1e-3)*param_loss
             elif config.MSE:
-                # one_hot = torch.zeros(data.shape[0], class_num).to(device).scatter_(1, label.unsqueeze(dim=1), 1)
                 one_hot = ones[label.cpu().numpy(), :]
                 one_hot = torch.FloatTensor(one_hot)
                 loss = criterion(output, one_hot.to(device))
