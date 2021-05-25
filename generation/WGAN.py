@@ -20,8 +20,8 @@ import dcgan
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--epoch', type=int, default=50, help='number of epochs to train for')
-parser.add_argument('--batchSize', type=int, default=32, help='input batch size')
-parser.add_argument('--imageSize', type=int, default=128, help='the height / width of the input image to network')
+parser.add_argument('--batchSize', type=int, default=16, help='input batch size')
+parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network')
 parser.add_argument('--nc', type=int, default=3, help='input image channels')
 parser.add_argument('--nz', type=int, default=100, help='size of the latent z vector')
 parser.add_argument('--ngf', type=int, default=64)
