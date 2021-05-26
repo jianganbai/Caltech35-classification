@@ -9,3 +9,6 @@ if __name__ == '__main__':
     # optim
     for net in choice:
         os.system('python analysis.py --net {} --optim'.format(net))
+    # wrong label
+    for net in choice:
+        os.system('python analysis.py --net {} --label'.format(net))

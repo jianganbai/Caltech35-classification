@@ -82,10 +82,10 @@ def main(config):
     train_loss, train_acc, val_acc = train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device)
 
     model.load_state_dict(torch.load('./model/{}.pth'.format(config['net'])))
-    test_accuracy = test(test_loader, model, device, visual=True, config=config)
+    test_acc = test(test_loader, model, device, visual=True, config=config)
     print('===========================')
-    print("test accuracy:{}%".format(test_accuracy * 100))
-    return train_loss, train_acc, val_acc
+    print("test accuracy:{}%".format(test_acc * 100))
+    return train_loss, train_acc, val_acc, test_acc
 
 
 def config_print(device, config):
@@ -216,11 +216,11 @@ if __name__ == '__main__':
     elif config['net'] == 'baseline' or 'baseline-dropout':
         config['imsize'] = [112, 112]
 
-    train_loss, train_acc, val_acc = main(config)
+    train_loss, train_acc, val_acc, test_acc = main(config)
     if not config['eval']:
         visualize.loss_and_acc(train_loss, train_acc, val_acc, config)
     else:
-        data = {'train_loss': train_loss, 'train_acc': train_acc, 'val_acc': val_acc}
+        data = {'train_loss': train_loss, 'train_acc': train_acc, 'val_acc': val_acc, 'test_acc': test_acc}
         prefix = list(map(lambda x: int(x[0]), list(os.listdir('./visualize/hyper_param/data'))))
         if len(prefix) == 0:
             file_name = '0.json'
