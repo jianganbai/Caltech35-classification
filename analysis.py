@@ -16,7 +16,8 @@ def lr_choice(opt):
     print('>>> Analyze how lr affects net training!')
     for lr in choice:
         print('------lr = {}------'.format(lr))
-        os.system('python main.py --net {} --lr {} --eval'.format(opt.net, lr))
+        os.system('python main.py --net {} --epochs {} --lr {} --eval'
+                  .format(opt.net, opt.epochs, lr))
 
     test_acc_his = []
     fig = plt.figure(figsize=(12, 5))
@@ -54,7 +55,8 @@ def optim_choice(opt):
     print('>>> Analyze how choices of optimizer affect net training!')
     for optim in choice:
         print('------optim = {}------'.format(optim))
-        os.system('python main.py --net {} --optim {} --eval'.format(opt.net, optim))
+        os.system('python main.py --net {} --epochs {} --optim {} --eval'
+                  .format(opt.net, opt.epochs, optim))
 
     test_acc_his = []
     fig = plt.figure(figsize=(12, 5))
@@ -92,7 +94,8 @@ def wrong_label(opt):
     print('>>> Analyze how wrong labels affect net training!')
     for prop in choice:
         print('------wrong label proportion = {}------'.format(prop))
-        os.system('python main.py --net {} --wrong_prop {} --eval'.format(opt.net, prop))
+        os.system('python main.py --net {} --epochs {} --wrong_prop {} --eval'
+                  .format(opt.net, opt.epochs, prop))
 
     test_acc_his = []
     fig = plt.figure(figsize=(12, 5))
@@ -131,16 +134,18 @@ def loss_choice(opt):
     for loss in choice:
         print('------loss function = {}------'.format(loss))
         if loss == 'CrossEntropy':
-            os.system('python main.py --net {} --eval'.format(opt.net))
+            os.system('python main.py --net {} --epochs {} --eval'
+                      .format(opt.net, opt.epochs))
         else:
-            os.system('python main.py --net {} --{} --eval'.format(opt.net, loss))
+            os.system('python main.py --net {} --epochs {} --{} --eval'
+                      .format(opt.net, opt.epochs, loss))
 
     test_acc_his = []
     fig = plt.figure(figsize=(12, 5))
     ax1 = fig.add_subplot(121)
     ax2 = fig.add_subplot(122)
-    for file_name in os.listdir('./visualize/loss_func'):
-        with open('./visualize/loss_func/'+file_name, 'r') as fp:
+    for file_name in os.listdir('./visualize/hyper_param/data/'):
+        with open('./visualize/hyper_param/data/'+file_name, 'r') as fp:
             data = json.load(fp)
         train_loss = data['train_loss']
         val_acc = data['val_acc']
@@ -163,6 +168,7 @@ def loss_choice(opt):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--net', choices=['baseline', 'baseline-dropout', 'small-CNN', 'resnet', 'densenet'], default='baseline')
+    parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--lr', action='store_true', default=False)
     parser.add_argument('--optim', action='store_true', default=False)
     parser.add_argument('--label', action='store_true', default=False)
