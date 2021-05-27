@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import os
 
 
-def tsne_vis(feat_all, label_all, config, vis_num=5):
+def tsne_vis(feat_all, label_all, config, data_type, vis_num=5):
     if not os.path.exists('./visualize/'):
         os.mkdir('./visualize/')
     if not os.path.exists('./visualize/feat_distri/'):
@@ -18,8 +18,10 @@ def tsne_vis(feat_all, label_all, config, vis_num=5):
         idx = np.where(label_all == label)[0].tolist()
         em = embedded[idx, :]
         plt.scatter(em[:, 0], em[:, 1])
-    plt.title('feature extracted by {}, visualized by t-sne'.format(config['net']))
-    plt.savefig('./visualize/feat_distri/{}.jpg'.format(config['net']))
+    plt.title('feature extracted by {}, visualized by t-sne\ndata: {}'
+              .format(config['net'], data_type))
+    plt.savefig('./visualize/feat_distri/{}-{}.jpg'
+                .format(config['net'], data_type))
 
 
 def loss_and_acc(train_loss, train_acc, val_acc, config):
@@ -40,6 +42,7 @@ def loss_and_acc(train_loss, train_acc, val_acc, config):
     ax2.plot(epoch, val_acc, label='val_acc')
     ax2.set_ylabel('accuracy')
 
-    fig.legend(loc='upper left', bbox_to_anchor=(0, 1), bbox_transform=ax1.transAxes)
+    fig.legend(loc='upper left', bbox_to_anchor=(0, 1),
+               bbox_transform=ax1.transAxes)
     plt.title('{} performance'.format(config['net']))
     plt.savefig('./visualize/loss&acc/{}.jpg'.format(config['net']))

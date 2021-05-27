@@ -82,7 +82,9 @@ def main(config):
     train_loss, train_acc, val_acc = train(config, train_loader, val_loader, model, optimizer, scheduler, criterion, device)
 
     model.load_state_dict(torch.load('./model/{}.pth'.format(config['net'])))
-    test_acc = test(test_loader, model, device, visual=True, config=config)
+    test_acc = test(test_loader, model, device, visual=True, config=config, data_type='test')
+    if config['train_tsne']:
+        _ = test(train_loader, model, device, visual=True, config=config, data_type='train')
     print('===========================')
     print("test accuracy:{}%".format(test_acc * 100))
     return train_loss, train_acc, val_acc, test_acc
@@ -164,11 +166,11 @@ def train(config, train_loader, val_loader, model, optimizer, scheduler,
     return train_loss_his, train_acc_his, val_acc_his
 
 
-def test(data_loader, model, device, visual=False, feat_num=64, config=None):
+def test(data_loader, model, device, visual=False, config=None, data_type=None):
     model.eval()
     correct = 0
     if visual:
-        feat_all, label_all = np.zeros((0, feat_num)), np.zeros((0))
+        feat_all, label_all = np.zeros((0, 64)), np.zeros((0))
         model.set_featout(True)
     with torch.no_grad():
         for data, label in data_loader:
@@ -188,7 +190,7 @@ def test(data_loader, model, device, visual=False, feat_num=64, config=None):
 
     # t-sne可视化
     if visual:
-        visualize.tsne_vis(feat_all, label_all, config)
+        visualize.tsne_vis(feat_all, label_all, config, data_type)
         model.set_featout(False)
     return accuracy
 
@@ -207,7 +209,8 @@ if __name__ == '__main__':
     parser.add_argument('--MSE', action='store_true', default=False)
     parser.add_argument('--add_real', action='store_true', default=False)
     parser.add_argument('--wrong_prop', type=float, default=0.0)
-    parser.add_argument('--eval', action='store_true', default=True)
+    parser.add_argument('--train_tsne', action='store_true', default=False)
+    parser.add_argument('--eval', action='store_true', default=False)
     config = parser.parse_args()
 
     config = vars(config)
