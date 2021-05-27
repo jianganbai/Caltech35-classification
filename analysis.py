@@ -119,12 +119,54 @@ def wrong_label(opt):
     plt.savefig('./visualize/hyper_param/label/{}.jpg'.format(opt.net))
 
 
+def loss_choice(opt):
+    choice = ['CrossEntropy', 'L1', 'L2', 'MSE']
+    if not os.path.exists('./visualize/loss_func'):
+        os.mkdir('./visualize/loss_func')
+
+    for file in os.listdir('./visualize/hyper_param/data'):
+        os.remove('./visualize/hyper_param/data/'+file)
+
+    print('>>> Analyze how choices of loss functions affect net training!')
+    for loss in choice:
+        print('------loss function = {}------'.format(loss))
+        if loss == 'CrossEntropy':
+            os.system('python main.py --net {} --eval'.format(opt.net))
+        else:
+            os.system('python main.py --net {} --{} --eval'.format(opt.net, loss))
+
+    test_acc_his = []
+    fig = plt.figure(figsize=(12, 5))
+    ax1 = fig.add_subplot(121)
+    ax2 = fig.add_subplot(122)
+    for file_name in os.listdir('./visualize/loss_func'):
+        with open('./visualize/loss_func/'+file_name, 'r') as fp:
+            data = json.load(fp)
+        train_loss = data['train_loss']
+        val_acc = data['val_acc']
+        test_acc = data['test_acc']
+        test_acc_his.append(test_acc)
+
+        epoch = np.arange(1, len(train_loss)+1)
+        ax1.plot(epoch, train_loss)
+        ax2.plot(epoch, val_acc)
+    ax1.set_xlabel('epoch')
+    ax1.set_ylabel('train loss')
+    ax2.set_xlabel('epoch')
+    ax2.set_ylabel('validation accuracy')
+    ax1.legend(['func='+str(x) for x in choice], loc='upper right')
+    ax2.legend(['func={}, test_acc={:.1f}%'.format(x, 100*y) for (x, y) in zip(choice, test_acc_his)], loc='lower right')
+    fig.suptitle('Training performance based on different loss functions\nmodel: {}'.format(opt.net))
+    plt.savefig('./visualize/loss_func/{}.jpg'.format(opt.net))
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--net', choices=['baseline', 'baseline-dropout', 'small-CNN', 'resnet', 'densenet'], default='baseline')
     parser.add_argument('--lr', action='store_true', default=False)
     parser.add_argument('--optim', action='store_true', default=False)
     parser.add_argument('--label', action='store_true', default=False)
+    parser.add_argument('--loss', action='store_true', default=False)
     opt = parser.parse_args()
 
     if not os.path.exists('./visualize'):
@@ -140,3 +182,5 @@ if __name__ == '__main__':
         optim_choice(opt)
     if opt.label:
         wrong_label(opt)
+    if opt.loss:
+        loss_choice(opt)
