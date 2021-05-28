@@ -16,8 +16,12 @@ def lr_choice(opt):
     print('>>> Analyze how lr affects net training!')
     for lr in choice:
         print('------lr = {}------'.format(lr))
-        os.system('python main.py --net {} --epochs {} --lr {} --eval'
-                  .format(opt.net, opt.epochs, lr))
+        if opt.add_real:
+            os.system('python main.py --net {} --epochs {} --lr {} --eval --add_real'
+                      .format(opt.net, opt.epochs, lr))
+        else:
+            os.system('python main.py --net {} --epochs {} --lr {} --eval'
+                      .format(opt.net, opt.epochs, lr))
 
     test_acc_his = []
     fig = plt.figure(figsize=(12, 5))
@@ -55,8 +59,12 @@ def optim_choice(opt):
     print('>>> Analyze how choices of optimizer affect net training!')
     for optim in choice:
         print('------optim = {}------'.format(optim))
-        os.system('python main.py --net {} --epochs {} --optim {} --eval'
-                  .format(opt.net, opt.epochs, optim))
+        if opt.add_real:
+            os.system('python main.py --net {} --epochs {} --optim {} --eval --add_real'
+                      .format(opt.net, opt.epochs, optim))
+        else:
+            os.system('python main.py --net {} --epochs {} --optim {} --eval'
+                      .format(opt.net, opt.epochs, optim))
 
     test_acc_his = []
     fig = plt.figure(figsize=(12, 5))
@@ -94,8 +102,12 @@ def wrong_label(opt):
     print('>>> Analyze how wrong labels affect net training!')
     for prop in choice:
         print('------wrong label proportion = {}------'.format(prop))
-        os.system('python main.py --net {} --epochs {} --wrong_prop {} --eval'
-                  .format(opt.net, opt.epochs, prop))
+        if opt.add_real:
+            os.system('python main.py --net {} --epochs {} --wrong_prop {} --eval --add_real'
+                      .format(opt.net, opt.epochs, prop))
+        else:
+            os.system('python main.py --net {} --epochs {} --wrong_prop {} --eval'
+                      .format(opt.net, opt.epochs, prop))
 
     test_acc_his = []
     fig = plt.figure(figsize=(12, 5))
@@ -134,11 +146,19 @@ def loss_choice(opt):
     for loss in choice:
         print('------loss function = {}------'.format(loss))
         if loss == 'CrossEntropy':
-            os.system('python main.py --net {} --epochs {} --eval'
-                      .format(opt.net, opt.epochs))
+            if opt.add_real:
+                os.system('python main.py --net {} --epochs {} --eval --add_real'
+                          .format(opt.net, opt.epochs))
+            else:
+                os.system('python main.py --net {} --epochs {} --eval'
+                          .format(opt.net, opt.epochs))
         else:
-            os.system('python main.py --net {} --epochs {} --{} --eval'
-                      .format(opt.net, opt.epochs, loss))
+            if opt.add_real:
+                os.system('python main.py --net {} --epochs {} --{} --eval --add_real'
+                          .format(opt.net, opt.epochs, loss))
+            else:
+                os.system('python main.py --net {} --epochs {} --{} --eval'
+                          .format(opt.net, opt.epochs, loss))
 
     test_acc_his = []
     fig = plt.figure(figsize=(12, 5))
@@ -173,6 +193,7 @@ if __name__ == '__main__':
     parser.add_argument('--optim', action='store_true', default=False)
     parser.add_argument('--label', action='store_true', default=False)
     parser.add_argument('--loss', action='store_true', default=False)
+    parser.add_argument('--add_real', action='store_true', default=False)
     opt = parser.parse_args()
 
     if not os.path.exists('./visualize'):

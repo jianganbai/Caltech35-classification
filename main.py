@@ -209,7 +209,7 @@ if __name__ == '__main__':
     parser.add_argument('--MSE', action='store_true', default=False)
     parser.add_argument('--add_real', action='store_true', default=False)
     parser.add_argument('--wrong_prop', type=float, default=0.0)
-    parser.add_argument('--train_tsne', action='store_true', default=False)
+    parser.add_argument('--train_tsne', action='store_true', default=True)
     parser.add_argument('--eval', action='store_true', default=False)
     config = parser.parse_args()
 

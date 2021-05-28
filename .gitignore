@@ -3,6 +3,7 @@ dataset/
 visualize/
 generation/generated
 generation/archive
+model/archive
 
 
 # Byte-compiled / optimized / DLL files
