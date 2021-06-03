@@ -79,10 +79,15 @@ def main(config):
         criterion = torch.nn.CrossEntropyLoss()
 
     # 先在干净的补充数据集上训练
-    _, _, _ = train(config, add_loader, val_loader, model, optimizer, criterion, device)
+    print('>>> train on clean dataset')
+    print('===========================')
+    add_loss, add_acc, val_add_acc = train(config, config['ep1'], add_loader, val_loader, model, optimizer, criterion, device)
     # 再在有噪声的训练集上训练
+    print('>>> train on dirty dataset')
+    print('===========================')
     model.load_state_dict(torch.load('./model/{}-anti-noise.pth'.format(config['net'])))
-    train_loss, train_acc, val_acc = train(config, train_loader, val_loader, model, optimizer, criterion, device, scheduler=scheduler)
+    train_loss, train_acc, val_train_acc = train(config, config['ep2'], train_loader,
+        val_loader, model, optimizer, criterion, device, scheduler=scheduler)
 
     model.load_state_dict(torch.load('./model/{}-anti-noise.pth'.format(config['net'])))
     test_acc = test(test_loader, model, device, visual=True, config=config, data_type='test')
@@ -90,36 +95,18 @@ def main(config):
         _ = test(train_loader, model, device, visual=True, config=config, data_type='train')
     print('===========================')
     print("test accuracy:{}%".format(test_acc * 100))
-    return train_loss, train_acc, val_acc, test_acc
+    return (add_loss+train_loss), (add_acc+train_acc), (val_add_acc+val_train_acc), test_acc
 
 
-def config_print(device, config):
-    if config['L1']:
-        loss_func = 'CrossEntropy+L1'
-    elif config['L2']:
-        loss_func = 'CrossEntropy+L2'
-    elif config['MSE']:
-        loss_func = 'MSE'
-    else:
-        loss_func = 'CrossEntropy'
-    addition = ''
-    if config['wrong_prop'] > 0:
-        addition += 'wrong_prop={}; '.format(config['wrong_prop'])
-
-    message = '[Device: {}] [Epoch: {}] [Net Type: {}] [Loss: {}] [Addition: {}]'.format(
-        device, config['epochs'], config['net'], loss_func, addition)
-    print(message)
-    print('===========================')
-
-
-def train(config, train_loader, val_loader, model, optimizer,
+def train(config, epoch, train_loader, val_loader, model, optimizer,
           criterion, device, class_num=35, scheduler=None):
     train_loss_his, train_acc_his, val_acc_his = [], [], []
     best_val_acc = 0
     ones = np.eye(class_num)
-    config_print(device, config)
+    print('[Device: {}] [Epoch: {}] [Net Type: {}]'.format(
+        device, epoch, config['net']))
 
-    for epoch in np.arange(1, config['epochs']+1):
+    for ep in np.arange(1, epoch+1):
         model.train()
         epoch_start = time.time()
         train_acc, num, epoch_loss = 0, 0, 0
@@ -155,7 +142,7 @@ def train(config, train_loader, val_loader, model, optimizer,
         val_acc_his.append(val_acc)
         time_len = time.time()-epoch_start
         print('[Epoch: {}/{}] [Loss: {:.6f}] [Train Acc: {:.6f}] [Val Acc: {:.6f}] [Time: {:.1f}sec]'.format(
-            epoch, config['epochs'], epoch_loss, train_acc, val_acc, time_len))
+            ep, epoch, epoch_loss, train_acc, val_acc, time_len))
         if scheduler is not None:
             scheduler.step()
 
@@ -202,10 +189,10 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--class_num', type=int, default=35)
     parser.add_argument('--lr', type=float, default=0.01)
-    parser.add_argument('-a', '--ep1', type=int, default=20, help='for clean data')
-    parser.add_argument('-t', '--ep2', type=int, default=60, help='for noisy data')
+    parser.add_argument('--ep1', type=int, default=20, help='for clean data')
+    parser.add_argument('--ep2', type=int, default=60, help='for noisy data')
     parser.add_argument('--milestones', type=int, nargs='+', default=[40, 50])
-    parser.add_argument('--net', choices=['baseline', 'baseline-dropout', 'small-CNN', 'resnet', 'densenet'], default='small-CNN')
+    parser.add_argument('--net', choices=['baseline', 'baseline-dropout', 'small-CNN', 'resnet', 'densenet'], default='baseline')
     parser.add_argument('--optim', choices=['SGD', 'RMSprop', 'Adam'], default='SGD')
     parser.add_argument('--L1', action='store_true', default=False)
     parser.add_argument('--L2', action='store_true', default=False)
@@ -216,16 +203,16 @@ if __name__ == '__main__':
     config = parser.parse_args()
 
     config = vars(config)
+    config['epochs'] = config['ep2']
     if config['net'] == 'resnet' or config['net'] == 'densenet':
         config['imsize'] = [224, 224]
     elif config['net'] == 'baseline' or 'baseline-dropout':
         config['imsize'] = [112, 112]
 
     train_loss, train_acc, val_acc, test_acc = main(config)
-    if not config['eval']:
-        visualize.loss_and_acc(train_loss, train_acc, val_acc, config)
-    else:
-        data = {'train_loss': train_loss, 'train_acc': train_acc, 'val_acc': val_acc, 'test_acc': test_acc}
+    if config['eval']:
+        data = {'train_loss': train_loss, 'train_acc': train_acc,
+                'val_acc': val_acc, 'test_acc': test_acc}
         prefix = list(map(lambda x: int(x[0]), list(os.listdir('./visualize/hyper_param/data'))))
         if len(prefix) == 0:
             file_name = '0.json'
