@@ -186,7 +186,7 @@ def loss_choice(opt):
 
 
 def wrong_label_solution1(opt):  # clean dataset -> dirty dataset
-    choice = [0.2]
+    choice = [0.0, 0.1, 0.2, 0.3]
     if not os.path.exists('./visualize/hyper_param/label'):
         os.mkdir('./visualize/hyper_param/label')
 
