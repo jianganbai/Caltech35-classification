@@ -4,6 +4,35 @@ import matplotlib.pyplot as plt
 import json
 import numpy as np
 
+baseline_dict = {'lr': 0.1, 'optim': 'SGD', 'loss': 'L1'}
+dropout_dict = {'lr': 0.01, 'optim': 'SGD', 'loss': 'L1'}
+small_dict = {'lr': 0.1, 'optim': 'SGD', 'loss': 'L1'}
+resnet_dict = {'lr': 0.001, 'optim': 'SGD', 'loss': 'CrossEntropy'}
+densenet_dict = {'lr': 0.1, 'optim': 'SGD', 'loss': 'CrossEntropy'}
+
+
+def param2cmd(net):
+    if net == 'baseline':
+        net_dict = baseline_dict
+    elif net == 'baseline_dropout':
+        net_dict = dropout_dict
+    elif net == 'small-CNN':
+        net_dict = small_dict
+    elif net == 'resnet':
+        net_dict = resnet_dict
+    else:
+        net_dict = densenet_dict
+    if net_dict['loss'] == 'CrossEntropy':
+        message = '--lr {} --optim {}'.format(net_dict['lr'], net_dict['optim'])
+    elif net_dict['loss'] == 'L1':
+        message = '--lr {} --optim {} --L1'.format(net_dict['lr'], net_dict['optim'])
+    elif net_dict['loss'] == 'L2':
+        message = '--lr {} --optim {} --L2'.format(net_dict['lr'], net_dict['optim'])
+    else:
+        message = '--lr {} --optim {} --MSE'.format(net_dict['lr'], net_dict['optim'])
+        print('MSE is rubbish! MSE is rubbish! MSE is rubbish! Do not use MSE!')
+    return message
+
 
 def lr_choice(opt):
     choice = [0.1, 0.01, 0.001, 0.0001]
@@ -186,7 +215,7 @@ def loss_choice(opt):
 
 
 def wrong_label_solution1(opt):  # clean dataset -> dirty dataset
-    choice = [0.0, 0.1, 0.2, 0.3]
+    choice = [0.2]
     if not os.path.exists('./visualize/hyper_param/label'):
         os.mkdir('./visualize/hyper_param/label')
 
@@ -196,8 +225,9 @@ def wrong_label_solution1(opt):  # clean dataset -> dirty dataset
     print('>>> Analyze how wrong labels affect net training!')
     for prop in choice:
         print('------wrong label proportion = {}------'.format(prop))
-        os.system('python cross_train.py --net {} --ep1 {} --ep2 {} --wrong_prop {} --eval'
-                  .format(opt.net, opt.ep1, opt.ep2, prop))
+        message = param2cmd(opt.net)
+        os.system('python cross_train.py --net {} --ep1 {} --ep2 {} --wrong_prop {} --eval {}'
+                  .format(opt.net, opt.ep1, opt.ep2, prop, message))
 
     test_acc_his = []
     loss_max = 0
@@ -230,10 +260,14 @@ def wrong_label_solution1(opt):  # clean dataset -> dirty dataset
     ax1.text(0.9*(opt.ep1+0.5), 0.9*loss_max, 'clean dataset', ha='right')
     ax1.text(1.1*(opt.ep1+0.5), 0.9*loss_max, 'dirty dataset', ha='left')
     ax2.plot(separate_x, np.linspace(0, 1, num=len(train_loss)), linestyle=':')
-    ax2.text(0.9*(opt.ep1+0.5), max(test_acc_his)+0.2, 'clean dataset', ha='right')
-    ax2.text(1.1*(opt.ep1+0.5), max(test_acc_his)+0.2, 'dirty dataset', ha='left')
+    if max(test_acc_his) > 0.8:
+        loc = max(test_acc_his)-0.2
+    else:
+        loc = max(test_acc_his)-0.3
+    ax2.text(0.9*(opt.ep1+0.5), loc, 'clean dataset', ha='right')
+    ax2.text(1.1*(opt.ep1+0.5), loc, 'dirty dataset', ha='left')
     fig.suptitle('Training performance under different wrong label proportion\n\
-    model: {} strategy: clean dataset -> dirty dataset'.format(opt.net))
+    model: {}     strategy: clean dataset -> dirty dataset'.format(opt.net))
     plt.savefig('./visualize/hyper_param/label/{}.jpg'.format(opt.net))
 
 
