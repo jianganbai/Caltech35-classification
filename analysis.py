@@ -215,7 +215,7 @@ def loss_choice(opt):
 
 
 def wrong_label_solution1(opt):  # clean dataset -> dirty dataset
-    choice = [0.2]
+    choice = [0.0, 0.1, 0.2, 0.3]
     if not os.path.exists('./visualize/hyper_param/label'):
         os.mkdir('./visualize/hyper_param/label')
 
@@ -277,12 +277,12 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--lr', action='store_true', default=False)
     parser.add_argument('--optim', action='store_true', default=False)
-    parser.add_argument('--label0', action='store_true', default=False)
-    parser.add_argument('--label1', action='store_true', default=False, help='counter measure 1')
+    parser.add_argument('--label0', action='store_true', default=False, help='wrong label experiment without any counter measures')
+    parser.add_argument('--label1', action='store_true', default=False, help='counter measure 1 for wrong label experiment')
     parser.add_argument('--loss', action='store_true', default=False)
     parser.add_argument('--add_real', action='store_true', default=False)
-    parser.add_argument('--ep1', type=int, default=20)
-    parser.add_argument('--ep2', type=int, default=60)
+    parser.add_argument('--ep1', type=int, default=20, help='on clean dataset')
+    parser.add_argument('--ep2', type=int, default=60, help='on dirty dataset')
     opt = parser.parse_args()
 
     if not os.path.exists('./visualize'):
