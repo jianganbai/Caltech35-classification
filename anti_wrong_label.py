@@ -5,6 +5,7 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 # from torchvision.transforms.transforms import RandomVerticalFlip
+from cleanlab.pruning import get_noise_indices
 
 import argparse
 import time
@@ -82,12 +83,24 @@ def main(config):
     print('>>> train on clean dataset')
     print('===========================')
     add_loss, add_acc, val_add_acc = train(config, config['ep1'], add_loader, val_loader, model, optimizer, criterion, device)
-    # 再在有噪声的训练集上训练
-    print('>>> train on dirty dataset')
-    print('===========================')
     model.load_state_dict(torch.load('./model/{}-anti-noise.pth'.format(config['net'])))
-    train_loss, train_acc, val_train_acc = train(config, config['ep2'], train_loader,
-        val_loader, model, optimizer, criterion, device, scheduler=scheduler)
+    if config['clean lab'] is None:
+        # 再在有噪声的训练集上训练
+        print('>>> train on dirty dataset')
+        print('===========================')
+        train_loss, train_acc, val_train_acc = train(config, config['ep2'], train_loader,
+            val_loader, model, optimizer, criterion, device, scheduler=scheduler)
+    else:
+        # 再在有噪声的训练集上训练，估计错误标签
+        print('>>> train on dirty dataset')
+        print('===========================')
+        train_loss1, train_acc1, val_train_acc1 = train(config, config['ep2'], train_loader,
+            val_loader, model, optimizer, criterion, device, scheduler=scheduler)
+        model.load_state_dict(torch.load('./model/{}-anti-noise.pth'.format(config['net'])))
+        psx = test(train_loader, model, device, config=config, prob=True)
+        s = train_dataset.get_annotions()
+        ordered_label_errors = get_noise_indices(s=s, psx=psx, sorted_index_method='normalized_margin')
+
 
     model.load_state_dict(torch.load('./model/{}-anti-noise.pth'.format(config['net'])))
     test_acc = test(test_loader, model, device, visual=True, config=config, data_type='test')
@@ -155,12 +168,15 @@ def train(config, epoch, train_loader, val_loader, model, optimizer,
     return train_loss_his, train_acc_his, val_acc_his
 
 
-def test(data_loader, model, device, visual=False, config=None, data_type=None):
+def test(data_loader, model, device, visual=False, config=None,
+         data_type=None, prob=False):
     model.eval()
     correct = 0
     if visual:
         feat_all, label_all = np.zeros((0, 64)), np.zeros((0))
         model.set_featout(True)
+    if prob:
+        psx = np.zeros((0, 35))
     with torch.no_grad():
         for data, label in data_loader:
             data = data.to(device)
@@ -175,13 +191,18 @@ def test(data_loader, model, device, visual=False, config=None, data_type=None):
             if visual:
                 feat_all = np.row_stack((feat_all, feat.cpu().numpy()))
                 label_all = np.concatenate([label_all, label.cpu().numpy()])
+            if prob:
+                psx = np.row_stack((psx, output.cpu().numpy()))
     accuracy = correct.item() * 1.0 / len(data_loader.dataset)
 
     # t-sne可视化
     if visual:
         visualize.tsne_vis(feat_all, label_all, config, data_type)
         model.set_featout(False)
-    return accuracy
+    if prob:
+        return psx
+    else:
+        return accuracy
 
 
 if __name__ == '__main__':
@@ -191,6 +212,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--ep1', type=int, default=20, help='for clean data')
     parser.add_argument('--ep2', type=int, default=60, help='for noisy data')
+    parser.add_argument('--ep3', type=int, default=40, help='for cleanlab')
     parser.add_argument('--milestones', type=int, nargs='+', default=[40, 50])
     parser.add_argument('--net', choices=['baseline', 'baseline-dropout', 'small-CNN', 'resnet', 'densenet'], default='baseline')
     parser.add_argument('--optim', choices=['SGD', 'RMSprop', 'Adam'], default='SGD')
@@ -199,6 +221,7 @@ if __name__ == '__main__':
     parser.add_argument('--MSE', action='store_true', default=False)
     parser.add_argument('--wrong_prop', type=float, default=0.0)
     parser.add_argument('--train_tsne', action='store_true', default=False)
+    parser.add_argument('--clean_lab', type=int, default=None, help='adjustment ratio')
     parser.add_argument('--eval', action='store_true', default=False)
     config = parser.parse_args()
 

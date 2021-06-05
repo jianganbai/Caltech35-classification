@@ -22,8 +22,8 @@ class tiny_caltech35(Dataset):
         if wrong_prop > 0:
             assert wrong_prop < 1  # 错误标签的比例应小于1
             wrong_num = int(wrong_prop*len(self.annotions))
-            wrong_loc = np.random.choice(len(self.annotions), size=wrong_num, replace=False)
-            for loc in wrong_loc:
+            self.wrong_loc = np.random.choice(len(self.annotions), size=wrong_num, replace=False)
+            for loc in self.wrong_loc:
                 wrong_label = np.random.randint(self.class_num, size=1)
                 while(wrong_label == self.annotions[loc]):
                     wrong_label = np.random.randint(self.class_num, size=1)
@@ -76,3 +76,9 @@ class tiny_caltech35(Dataset):
 
     def __len__(self):
         return len(self.samples)
+
+    def get_wrong_loc(self):
+        return self.wrong_loc
+
+    def get_annotions(self):
+        return self.annotions
