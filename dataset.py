@@ -82,3 +82,12 @@ class tiny_caltech35(Dataset):
 
     def get_annotions(self):
         return self.annotions
+
+    def delete_data(self, indices):
+        for id in indices:
+            self.samples[id] = -1
+            self.annotions[id] = -1
+        while -1 in self.samples:
+            self.samples.remove(-1)
+        while -1 in self.annotions:
+            self.annotions.remove(-1)

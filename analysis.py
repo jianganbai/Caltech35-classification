@@ -53,7 +53,7 @@ def lr_choice(opt):
                       .format(opt.net, opt.epochs, lr))
 
     test_acc_his = []
-    fig = plt.figure(figsize=(12, 5))
+    fig = plt.figure(figsize=(11, 5))
     ax1 = fig.add_subplot(121)
     ax2 = fig.add_subplot(122)
     for file_name in os.listdir('./visualize/hyper_param/data'):
@@ -96,7 +96,7 @@ def optim_choice(opt):
                       .format(opt.net, opt.epochs, optim))
 
     test_acc_his = []
-    fig = plt.figure(figsize=(12, 5))
+    fig = plt.figure(figsize=(11, 5))
     ax1 = fig.add_subplot(121)
     ax2 = fig.add_subplot(122)
     for file_name in os.listdir('./visualize/hyper_param/data'):
@@ -139,7 +139,7 @@ def wrong_label(opt):
                       .format(opt.net, opt.epochs, prop))
 
     test_acc_his = []
-    fig = plt.figure(figsize=(12, 5))
+    fig = plt.figure(figsize=(11, 5))
     ax1 = fig.add_subplot(121)
     ax2 = fig.add_subplot(122)
     for file_name in os.listdir('./visualize/hyper_param/data'):
@@ -190,7 +190,7 @@ def loss_choice(opt):
                           .format(opt.net, opt.epochs, loss))
 
     test_acc_his = []
-    fig = plt.figure(figsize=(12, 5))
+    fig = plt.figure(figsize=(11, 5))
     ax1 = fig.add_subplot(121)
     ax2 = fig.add_subplot(122)
     for file_name in os.listdir('./visualize/hyper_param/data/'):
@@ -226,12 +226,12 @@ def wrong_label_solution1(opt):  # clean dataset -> dirty dataset
     for prop in choice:
         print('------wrong label proportion = {}------'.format(prop))
         message = param2cmd(opt.net)
-        os.system('python cross_train.py --net {} --ep1 {} --ep2 {} --wrong_prop {} --eval {}'
-                  .format(opt.net, opt.ep1, opt.ep2, prop, message))
+        os.system('python main.py --net {} --ep1 {} --ep2 {} --wrong_prop {} --eval {}'
+                  .format(opt.net, opt.ep1, opt.ep2+opt.ep3, prop, message))
 
     test_acc_his = []
     loss_max = 0
-    fig = plt.figure(figsize=(12, 5))
+    fig = plt.figure(figsize=(11, 5))
     ax1 = fig.add_subplot(121)
     ax2 = fig.add_subplot(122)
     for file_name in os.listdir('./visualize/hyper_param/data'):
@@ -263,11 +263,73 @@ def wrong_label_solution1(opt):  # clean dataset -> dirty dataset
     if max(test_acc_his) > 0.8:
         loc = max(test_acc_his)-0.2
     else:
-        loc = max(test_acc_his)-0.3
+        loc = max(test_acc_his)+0.2
     ax2.text(0.9*(opt.ep1+0.5), loc, 'clean dataset', ha='right')
     ax2.text(1.1*(opt.ep1+0.5), loc, 'dirty dataset', ha='left')
     fig.suptitle('Training performance under different wrong label proportion\n\
     model: {}     strategy: clean dataset -> dirty dataset'.format(opt.net))
+    plt.savefig('./visualize/hyper_param/label/{}.jpg'.format(opt.net))
+
+
+def wrong_label_solution2(opt):  # clean lab
+    choice = [0.0, 0.1, 0.2, 0.3]
+    if not os.path.exists('./visualize/hyper_param/label'):
+        os.mkdir('./visualize/hyper_param/label')
+
+    for file in os.listdir('./visualize/hyper_param/data'):
+        os.remove('./visualize/hyper_param/data/'+file)
+
+    print('>>> Analyze how wrong labels affect net training!')
+    for prop in choice:
+        print('------wrong label proportion = {}------'.format(prop))
+        message = param2cmd(opt.net)
+        os.system('python anti_wrong_label.py --net {} --ep1 {} --ep2 {} --ep3 {} --clean_lab {} --wrong_prop {} --eval {}'
+                  .format(opt.net, opt.ep1, opt.ep2, opt.ep3, 0.8, prop, message))
+
+    test_acc_his = []
+    loss_max = 0
+    fig = plt.figure(figsize=(11, 5))
+    ax1 = fig.add_subplot(121)
+    ax2 = fig.add_subplot(122)
+    for file_name in os.listdir('./visualize/hyper_param/data'):
+        with open('./visualize/hyper_param/data/'+file_name, 'r') as fp:
+            data = json.load(fp)
+        train_loss = data['train_loss']
+        val_acc = data['val_acc']
+        test_acc = data['test_acc']
+        test_acc_his.append(test_acc)
+
+        if loss_max < max(train_loss):
+            loss_max = max(train_loss)
+        epoch = np.arange(1, len(train_loss)+1)
+        ax1.plot(epoch, train_loss)
+        ax2.plot(epoch, val_acc)
+    ax1.set_xlabel('epoch')
+    ax1.set_ylabel('train loss')
+    ax2.set_xlabel('epoch')
+    ax2.set_ylabel('validation accuracy')
+    ax1.legend(['p='+str(x) for x in choice], loc='upper right')
+    ax2.legend(['p={:.0f}%, test_acc={:.1f}%'.format(100*x, 100*y) for (x, y) in zip(choice, test_acc_his)], loc='lower right')
+
+    separate_x1 = (opt.ep1+0.5) * np.ones(len(train_loss))
+    separate_x2 = (opt.ep1+opt.ep2+0.5) * np.ones(len(train_loss))
+    separate_y = np.linspace(0, loss_max+0.1, num=len(train_loss))
+    ax1.plot(separate_x1, separate_y, linestyle=':')
+    ax1.plot(separate_x2, separate_y, linestyle=':')
+    ax1.text(0.9*(opt.ep1+0.5), 0.9*loss_max, 'clean dataset', ha='right')
+    ax1.text(1.1*(opt.ep1+0.5), 0.9*loss_max, 'dirty', ha='left')
+    ax1.text(1.1*(opt.ep1+opt.ep2+0.5), 0.9*loss_max, 'washed by cleanlab', ha='left')
+    ax2.plot(separate_x1, np.linspace(0, 1, num=len(train_loss)), linestyle=':')
+    ax2.plot(separate_x2, np.linspace(0, 1, num=len(train_loss)), linestyle=':')
+    if max(test_acc_his) > 0.8:
+        loc = max(test_acc_his)-0.2
+    else:
+        loc = max(test_acc_his)+0.2
+    ax2.text(0.9*(opt.ep1+0.5), loc, 'clean dataset', ha='right')
+    ax2.text(1.1*(opt.ep1+0.5), loc, 'dirty', ha='left')
+    ax2.text(1.1*(opt.ep1+opt.ep2+0.5), loc, 'washed by cleanlab', ha='left')
+    fig.suptitle('Training performance under different wrong label proportion\n\
+    model: {}     strategy: clean lab method'.format(opt.net))
     plt.savefig('./visualize/hyper_param/label/{}.jpg'.format(opt.net))
 
 
@@ -279,10 +341,12 @@ if __name__ == '__main__':
     parser.add_argument('--optim', action='store_true', default=False)
     parser.add_argument('--label0', action='store_true', default=False, help='wrong label experiment without any counter measures')
     parser.add_argument('--label1', action='store_true', default=False, help='counter measure 1 for wrong label experiment')
+    parser.add_argument('--label2', action='store_true', default=False, help='cleanlab method')
     parser.add_argument('--loss', action='store_true', default=False)
     parser.add_argument('--add_real', action='store_true', default=False)
     parser.add_argument('--ep1', type=int, default=20, help='on clean dataset')
-    parser.add_argument('--ep2', type=int, default=60, help='on dirty dataset')
+    parser.add_argument('--ep2', type=int, default=10, help='on dirty dataset')
+    parser.add_argument('--ep3', type=int, default=50, help='cleanlab method')
     opt = parser.parse_args()
 
     if not os.path.exists('./visualize'):
@@ -302,3 +366,5 @@ if __name__ == '__main__':
         loss_choice(opt)
     if opt.label1:
         wrong_label_solution1(opt)
+    if opt.label2:
+        wrong_label_solution2(opt)

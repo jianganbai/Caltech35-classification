@@ -36,7 +36,7 @@ def main(config):
     ])
 
     train_dataset = tiny_caltech35(transform=transform_train, used_data=['train'], wrong_prop=config['wrong_prop'])
-    train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True)
+    train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=False)
 
     val_dataset = tiny_caltech35(transform=transform_test, used_data=['val'])
     val_loader = DataLoader(val_dataset, batch_size=config['batch_size'], shuffle=False, drop_last=False)
@@ -84,11 +84,11 @@ def main(config):
     print('===========================')
     add_loss, add_acc, val_add_acc = train(config, config['ep1'], add_loader, val_loader, model, optimizer, criterion, device)
     model.load_state_dict(torch.load('./model/{}-anti-noise.pth'.format(config['net'])))
-    if config['clean lab'] is None:
+    if config['clean_lab'] is None:
         # 再在有噪声的训练集上训练
         print('>>> train on dirty dataset')
         print('===========================')
-        train_loss, train_acc, val_train_acc = train(config, config['ep2'], train_loader,
+        train_loss, train_acc, val_train_acc = train(config, config['ep2']+config['ep3'], train_loader,
             val_loader, model, optimizer, criterion, device, scheduler=scheduler)
     else:
         # 再在有噪声的训练集上训练，估计错误标签
@@ -96,11 +96,32 @@ def main(config):
         print('===========================')
         train_loss1, train_acc1, val_train_acc1 = train(config, config['ep2'], train_loader,
             val_loader, model, optimizer, criterion, device, scheduler=scheduler)
+
         model.load_state_dict(torch.load('./model/{}-anti-noise.pth'.format(config['net'])))
         psx = test(train_loader, model, device, config=config, prob=True)
         s = train_dataset.get_annotions()
-        ordered_label_errors = get_noise_indices(s=s, psx=psx, sorted_index_method='normalized_margin')
+        predict_all = get_noise_indices(s=s, psx=psx, sorted_index_method='normalized_margin')
+        adopt = min(int(config['clean_lab']*predict_all.shape[0]), int(len(s)*config['wrong_prop']))
+        predict = np.random.choice(predict_all, size=adopt, replace=False)
+        wrong_loc = train_dataset.get_wrong_loc()
+        correct = 0
+        for i in predict:
+            if i in wrong_loc:
+                correct += 1
+        recall = correct/len(wrong_loc)
+        precision = correct/len(predict)
+        print('===========================')
+        print('>>> cleanlab detection: [wrong label num={}] [recall={:.3f}] [precision={:.3f}]'.format(
+            predict.shape[0], recall, precision))
+        print('===========================')
+        train_dataset.delete_data(predict)
 
+        train_loader_new = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True)
+        train_loss2, train_acc2, val_train_acc2 = train(config, config['ep3'], train_loader_new,
+            val_loader, model, optimizer, criterion, device, scheduler=scheduler)
+        train_loss = train_loss1+train_loss2
+        train_acc = train_acc1+train_acc2
+        val_train_acc = val_train_acc1+val_train_acc2
 
     model.load_state_dict(torch.load('./model/{}-anti-noise.pth'.format(config['net'])))
     test_acc = test(test_loader, model, device, visual=True, config=config, data_type='test')
@@ -211,7 +232,7 @@ if __name__ == '__main__':
     parser.add_argument('--class_num', type=int, default=35)
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--ep1', type=int, default=20, help='for clean data')
-    parser.add_argument('--ep2', type=int, default=60, help='for noisy data')
+    parser.add_argument('--ep2', type=int, default=20, help='for noisy data')
     parser.add_argument('--ep3', type=int, default=40, help='for cleanlab')
     parser.add_argument('--milestones', type=int, nargs='+', default=[40, 50])
     parser.add_argument('--net', choices=['baseline', 'baseline-dropout', 'small-CNN', 'resnet', 'densenet'], default='baseline')
@@ -219,9 +240,9 @@ if __name__ == '__main__':
     parser.add_argument('--L1', action='store_true', default=False)
     parser.add_argument('--L2', action='store_true', default=False)
     parser.add_argument('--MSE', action='store_true', default=False)
-    parser.add_argument('--wrong_prop', type=float, default=0.0)
+    parser.add_argument('--wrong_prop', type=float, default=0.2)
     parser.add_argument('--train_tsne', action='store_true', default=False)
-    parser.add_argument('--clean_lab', type=int, default=None, help='adjustment ratio')
+    parser.add_argument('--clean_lab', type=float, default=None, help='adjustment ratio')
     parser.add_argument('--eval', action='store_true', default=False)
     config = parser.parse_args()
 

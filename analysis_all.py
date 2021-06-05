@@ -25,6 +25,10 @@ def main(opt):
         for net in choice:
             os.system('python analysis.py --net {} --label1'.format(net))
 
+    if opt.label2:
+        for net in choice:
+            os.system('python analysis.py --net {} --label2'.format(net))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -33,6 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('--loss', action='store_true', default=False)
     parser.add_argument('--label0', action='store_true', default=False)
     parser.add_argument('--label1', action='store_true', default=False)
+    parser.add_argument('--label2', action='store_true', default=False)
     opt = parser.parse_args()
 
     main(opt)
