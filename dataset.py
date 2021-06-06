@@ -19,6 +19,7 @@ class tiny_caltech35(Dataset):
 
         self.samples, self.annotions = self._load_samples()  # 图片路径+标签
         self.class_num = max(self.annotions)+1
+        self.wrong_loc = np.array([])
         if wrong_prop > 0:
             assert wrong_prop < 1  # 错误标签的比例应小于1
             wrong_num = int(wrong_prop*len(self.annotions))

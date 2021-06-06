@@ -284,7 +284,7 @@ def wrong_label_solution2(opt):  # clean lab
         print('------wrong label proportion = {}------'.format(prop))
         message = param2cmd(opt.net)
         os.system('python anti_wrong_label.py --net {} --ep1 {} --ep2 {} --ep3 {} --clean_lab {} --wrong_prop {} --eval {}'
-                  .format(opt.net, opt.ep1, opt.ep2, opt.ep3, 0.8, prop, message))
+                  .format(opt.net, opt.ep1, opt.ep2, opt.ep3, 0.6, prop, message))
 
     test_acc_his = []
     loss_max = 0
@@ -344,8 +344,8 @@ if __name__ == '__main__':
     parser.add_argument('--label2', action='store_true', default=False, help='cleanlab method')
     parser.add_argument('--loss', action='store_true', default=False)
     parser.add_argument('--add_real', action='store_true', default=False)
-    parser.add_argument('--ep1', type=int, default=20, help='on clean dataset')
-    parser.add_argument('--ep2', type=int, default=10, help='on dirty dataset')
+    parser.add_argument('--ep1', type=int, default=15, help='on clean dataset')
+    parser.add_argument('--ep2', type=int, default=5, help='on dirty dataset')
     parser.add_argument('--ep3', type=int, default=50, help='cleanlab method')
     opt = parser.parse_args()
 

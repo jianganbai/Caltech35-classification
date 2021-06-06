@@ -36,7 +36,7 @@ def main(config):
     ])
 
     train_dataset = tiny_caltech35(transform=transform_train, used_data=['train'], wrong_prop=config['wrong_prop'])
-    train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=False)
+    train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True)
 
     val_dataset = tiny_caltech35(transform=transform_test, used_data=['val'])
     val_loader = DataLoader(val_dataset, batch_size=config['batch_size'], shuffle=False, drop_last=False)
@@ -95,29 +95,34 @@ def main(config):
         print('>>> train on dirty dataset')
         print('===========================')
         train_loss1, train_acc1, val_train_acc1 = train(config, config['ep2'], train_loader,
-            val_loader, model, optimizer, criterion, device, scheduler=scheduler)
+            val_loader, model, optimizer, criterion, device, scheduler=scheduler, best_val=max(val_add_acc))
 
         model.load_state_dict(torch.load('./model/{}-anti-noise.pth'.format(config['net'])))
-        psx = test(train_loader, model, device, config=config, prob=True)
+        train_loader_unshuffled = DataLoader(train_dataset, batch_size=config['batch_size'], drop_last=False)
+        psx = test(train_loader_unshuffled, model, device, config=config, prob=True)
         s = train_dataset.get_annotions()
-        predict_all = get_noise_indices(s=s, psx=psx, sorted_index_method='normalized_margin')
-        adopt = min(int(config['clean_lab']*predict_all.shape[0]), int(len(s)*config['wrong_prop']))
+        predict_all = get_noise_indices(s=s, psx=psx, sorted_index_method='normalized_margin',
+                                        frac_noise=config['clean_lab'])
+        adopt = min(predict_all.shape[0], int(len(s)*config['wrong_prop']))
         predict = np.random.choice(predict_all, size=adopt, replace=False)
         wrong_loc = train_dataset.get_wrong_loc()
         correct = 0
         for i in predict:
             if i in wrong_loc:
                 correct += 1
-        recall = correct/len(wrong_loc)
-        precision = correct/len(predict)
+        recall, precision = 0, 0
+        if len(wrong_loc) > 0:
+            recall = correct/len(wrong_loc)
+        if len(predict) > 0:
+            precision = correct/len(predict)
         print('===========================')
         print('>>> cleanlab detection: [wrong label num={}] [recall={:.3f}] [precision={:.3f}]'.format(
             predict.shape[0], recall, precision))
         print('===========================')
         train_dataset.delete_data(predict)
 
-        train_loader_new = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True)
-        train_loss2, train_acc2, val_train_acc2 = train(config, config['ep3'], train_loader_new,
+        train_loader_washed = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True)
+        train_loss2, train_acc2, val_train_acc2 = train(config, config['ep3'], train_loader_washed,
             val_loader, model, optimizer, criterion, device, scheduler=scheduler)
         train_loss = train_loss1+train_loss2
         train_acc = train_acc1+train_acc2
@@ -133,13 +138,15 @@ def main(config):
 
 
 def train(config, epoch, train_loader, val_loader, model, optimizer,
-          criterion, device, class_num=35, scheduler=None):
+          criterion, device, class_num=35, scheduler=None, best_val=0):
     train_loss_his, train_acc_his, val_acc_his = [], [], []
     best_val_acc = 0
     ones = np.eye(class_num)
     print('[Device: {}] [Epoch: {}] [Net Type: {}]'.format(
         device, epoch, config['net']))
 
+    if epoch == 0:
+        return [], [], []
     for ep in np.arange(1, epoch+1):
         model.train()
         epoch_start = time.time()
@@ -185,7 +192,8 @@ def train(config, epoch, train_loader, val_loader, model, optimizer,
             best_net_para = copy.deepcopy(model.state_dict())
 
     print('Training Complete! Best validation accuracy: {:.6f}'.format(best_val_acc))
-    torch.save(best_net_para, './model/{}-anti-noise.pth'.format(config['net']))
+    if best_val < best_val_acc:
+        torch.save(best_net_para, './model/{}-anti-noise.pth'.format(config['net']))
     return train_loss_his, train_acc_his, val_acc_his
 
 
